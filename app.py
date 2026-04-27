@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 from flask import Flask, render_template, request, redirect, send_file, flash
 from models import db, User, FileLog
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
@@ -227,5 +230,8 @@ def relatorio_pdf():
 
 # ================= START =================
 
+import os
+
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
