@@ -45,12 +45,17 @@ def register():
 def home():
     logs = FileLog.query.all()
 
+    nomes = [l.filename for l in logs]
+    correcoes = [l.corrections for l in logs]
+
     total_arquivos = len(logs)
-    total_correcoes = sum(l.corrections for l in logs)
+    total_correcoes = sum(correcoes)
 
     return render_template(
         "home.html",
         logs=logs,
+        nomes=nomes,
+        correcoes=correcoes,
         total_arquivos=total_arquivos,
         total_correcoes=total_correcoes
     )

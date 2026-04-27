@@ -2,13 +2,16 @@
 <html>
 <head>
 <title>SIOPE PRO MAX</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body { font-family: Arial; background:#f4f6f9; margin:0;}
 .header { background:#003366; color:white; padding:15px; font-size:20px;}
 .container { padding:20px;}
 .card { background:white; padding:20px; border-radius:8px; margin-bottom:20px;}
 .stats { display:flex; gap:20px;}
-.stat { flex:1; background:#007bff; color:white; padding:20px; border-radius:8px;}
+.stat { flex:1; background:#007bff; color:white; padding:20px; border-radius:8px; text-align:center;}
 button { background:#28a745; color:white; padding:10px; border:none;}
 table { width:100%; border-collapse:collapse;}
 td,th { padding:10px; border-bottom:1px solid #ddd;}
@@ -24,6 +27,11 @@ td,th { padding:10px; border-bottom:1px solid #ddd;}
 <div class="stats">
 <div class="stat">Arquivos: {{total_arquivos}}</div>
 <div class="stat">Correções: {{total_correcoes}}</div>
+</div>
+
+<div class="card">
+<h3>📊 Correções por Arquivo</h3>
+<canvas id="grafico"></canvas>
 </div>
 
 <div class="card">
@@ -49,5 +57,25 @@ td,th { padding:10px; border-bottom:1px solid #ddd;}
 </div>
 
 </div>
+
+<script>
+const ctx = document.getElementById('grafico');
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ nomes|tojson }},
+        datasets: [{
+            label: 'Correções',
+            data: {{ correcoes|tojson }},
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+</script>
+
 </body>
 </html>
