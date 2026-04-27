@@ -1,4 +1,5 @@
-
+import os
+import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
@@ -70,16 +71,36 @@ def dashboard():
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload():
-    files = request.files.getlist("files")
-    for f in files:
-        log = FileLog(
-            filename=f.filename,
-            org_id=current_user.org_id,
-            corrections=random.randint(50,300)
+    files = request.files.getlist('files')
+
+    if not files:
+        return "Nenhum arquivo enviado"
+
+    for file in files:
+        if file.filename == "":
+            continue
+
+        # SALVAR TEMPORÁRIO
+        filepath = os.path.join("uploads", file.filename)
+        file.save(filepath)
+
+        # PROCESSAR
+        import pandas as pd
+        df = pd.read_excel(filepath)
+
+        total = len(df)
+
+        novo = FileLog(
+            filename=file.filename,
+            corrections=total,
+            municipio=current_user.organization.name
         )
-        db.session.add(log)
+
+        db.session.add(novo)
+
     db.session.commit()
-    return jsonify({"status":"ok"})
+
+    return redirect(url_for('dashboard'))
 
 @app.route('/api/chart')
 @login_required

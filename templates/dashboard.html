@@ -8,6 +8,16 @@
 
 <canvas id="chart"></canvas>
 
+<form action="/upload" method="POST" enctype="multipart/form-data">
+    
+    <div id="drop-area">
+        <p>Arraste arquivos aqui</p>
+        <input type="file" name="files" multiple required>
+    </div>
+
+    <button type="submit">Processar</button>
+</form>
+
 <ul>
 {% for f in files %}
 <li>{{f.filename}} - {{f.corrections}}</li>
