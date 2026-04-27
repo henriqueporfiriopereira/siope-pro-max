@@ -1,46 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>SIOPE PRO MAX</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>SIOPE PRO MAX</title>
 </head>
 
 <body>
 
 <h2>Dashboard</h2>
 
-<form method="get">
-<select name="municipio">
-<option value="">Município</option>
-{% for m in municipios %}
-<option value="{{m}}">{{m}}</option>
-{% endfor %}
-</select>
+<p>Bem-vindo, {{ current_user.username }} |
+<a href="/logout">Sair</a></p>
 
-<select name="mes">
-<option value="">Mês</option>
-{% for m in meses_lista %}
-<option value="{{m}}">{{m}}</option>
-{% endfor %}
-</select>
+<hr>
 
-<button>Filtrar</button>
+<!-- 🔥 UPLOAD (O QUE FALTAVA) -->
+<h3>Enviar Arquivos</h3>
+
+<form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" multiple required>
+    <button type="submit">Processar</button>
 </form>
 
-<a href="/exportar?municipio={{request.args.get('municipio')}}&mes={{request.args.get('mes')}}">
-<button>Exportar Excel</button>
-</a>
+<hr>
 
-<h3>Crescimento entre meses: {{crescimento}}</h3>
+<!-- FILTROS -->
+<form method="get">
+    <select name="municipio">
+        <option value="">Município</option>
+        {% for m in municipios %}
+            <option value="{{m}}">{{m}}</option>
+        {% endfor %}
+    </select>
 
+    <select name="mes">
+        <option value="">Mês</option>
+        {% for m in meses_lista %}
+            <option value="{{m}}">{{m}}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">Filtrar</button>
+</form>
+
+<br>
+
+<a href="/exportar">Exportar Excel</a>
+
+<hr>
+
+<h3>Crescimento entre meses: {{ crescimento }}</h3>
+
+<!-- HISTÓRICO -->
+<h3>Histórico</h3>
+
+<ul>
+{% for l in logs %}
+    <li>{{ l.filename }} - {{ l.corrections }}</li>
+{% endfor %}
+</ul>
+
+<!-- GRÁFICO -->
 <canvas id="grafico"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-new Chart(document.getElementById('grafico'), {
+const ctx = document.getElementById('grafico');
+
+new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: {{ meses|tojson }},
-        datasets: [{ data: {{ valores|tojson }} }]
+        labels: {{ meses | tojson }},
+        datasets: [{
+            label: 'Correções',
+            data: {{ valores | tojson }}
+        }]
     }
 });
 </script>
