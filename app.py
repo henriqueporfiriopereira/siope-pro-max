@@ -51,58 +51,76 @@ def home():
     total_arquivos = len(logs)
     total_correcoes = sum(correcoes)
 
+    media = round(total_correcoes / total_arquivos, 2) if total_arquivos else 0
+
     return render_template(
         "home.html",
         logs=logs,
         nomes=nomes,
         correcoes=correcoes,
         total_arquivos=total_arquivos,
-        total_correcoes=total_correcoes
+        total_correcoes=total_correcoes,
+        media=media
     )
 
-from flask import redirect, url_for
+import zipfile
+from io import BytesIO
 
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload():
     files = request.files.getlist("file")
 
-    for file in files:
-        path = os.path.join(UPLOAD, file.filename)
-        file.save(path)
+    zip_buffer = BytesIO()
 
-        df = pd.read_excel(path, header=None)
-        linhas = []
-        erros = 0
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
 
-        for _, row in df.iterrows():
-            if pd.isna(row[0]): continue
+        for file in files:
+            path = os.path.join(UPLOAD, file.filename)
+            file.save(path)
 
-            partes = str(row[0]).split(';')
+            df = pd.read_excel(path, header=None)
+            linhas = []
+            erros = 0
 
-            if len(partes) > 21:
-                try:
-                    base = float(partes[17].replace('.', '').replace(',', '.'))
-                    rem = float(partes[21].replace('.', '').replace(',', '.'))
+            for _, row in df.iterrows():
+                if pd.isna(row[0]): continue
 
-                    if base > rem:
-                        partes[17] = partes[21]
-                        erros += 1
-                except:
-                    pass
+                partes = str(row[0]).split(';')
 
-            linhas.append(';'.join(partes))
+                if len(partes) > 21:
+                    try:
+                        base = float(partes[17].replace('.', '').replace(',', '.'))
+                        rem = float(partes[21].replace('.', '').replace(',', '.'))
 
-        out = path.replace(".xlsx","_CORRIGIDO.xlsx")
-        pd.DataFrame(linhas).to_excel(out, index=False, header=False)
+                        if base > rem:
+                            partes[17] = partes[21]
+                            erros += 1
+                    except:
+                        pass
 
-        log = FileLog(filename=file.filename, corrections=erros)
-        db.session.add(log)
+                linhas.append(';'.join(partes))
+
+            nome_saida = file.filename.replace(".xlsx", "_CORRIGIDO.xlsx")
+
+            output_path = os.path.join(UPLOAD, nome_saida)
+            pd.DataFrame(linhas).to_excel(output_path, index=False, header=False)
+
+            zip_file.write(output_path, nome_saida)
+
+            log = FileLog(filename=file.filename, corrections=erros)
+            db.session.add(log)
 
     db.session.commit()
 
-    # 🔥 VOLTA PRO DASHBOARD
-    return redirect(url_for("home"))
+    zip_buffer.seek(0)
+
+    return send_file(
+        zip_buffer,
+        as_attachment=True,
+        download_name="arquivos_corrigidos.zip",
+        mimetype="application/zip"
+    )
 
 @app.route("/logout")
 def logout():

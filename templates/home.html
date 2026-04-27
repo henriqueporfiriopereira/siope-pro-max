@@ -25,8 +25,9 @@ td,th { padding:10px; border-bottom:1px solid #ddd;}
 <div class="container">
 
 <div class="stats">
-<div class="stat">Arquivos: {{total_arquivos}}</div>
-<div class="stat">Correções: {{total_correcoes}}</div>
+<div class="stat">Arquivos<br><b>{{total_arquivos}}</b></div>
+<div class="stat">Correções<br><b>{{total_correcoes}}</b></div>
+<div class="stat">Média<br><b>{{media}}</b></div>
 </div>
 
 <div class="card">
@@ -39,7 +40,7 @@ td,th { padding:10px; border-bottom:1px solid #ddd;}
 <form action="/upload" method="post" enctype="multipart/form-data">
 <input type="file" name="file" multiple>
 <br><br>
-<button>Processar</button>
+<button>Processar e Baixar ZIP</button>
 </form>
 </div>
 
@@ -59,9 +60,7 @@ td,th { padding:10px; border-bottom:1px solid #ddd;}
 </div>
 
 <script>
-const ctx = document.getElementById('grafico');
-
-new Chart(ctx, {
+new Chart(document.getElementById('grafico'), {
     type: 'bar',
     data: {
         labels: {{ nomes|tojson }},
@@ -71,9 +70,7 @@ new Chart(ctx, {
             borderWidth: 1
         }]
     },
-    options: {
-        responsive: true
-    }
+    options: { responsive: true }
 });
 </script>
 
