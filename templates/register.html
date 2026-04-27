@@ -1,5 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cadastrar</title>
+
+<style>
+body {
+    font-family: Arial;
+    background:#003366;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+}
+
+.box {
+    background:white;
+    padding:30px;
+    border-radius:10px;
+}
+
+input {
+    display:block;
+    margin:10px 0;
+    padding:10px;
+    width:250px;
+}
+
+button {
+    padding:10px;
+    background:#28a745;
+    color:white;
+    border:none;
+    width:100%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<h2>Criar usuário</h2>
+
 <form method="post">
-<input name="user">
-<input name="pass">
-<button>Criar</button>
+<input name="user" placeholder="Usuário" required>
+<input name="pass" type="password" placeholder="Senha" required>
+<button>Cadastrar</button>
 </form>
+
+<a href="/">Voltar</a>
+
+</div>
+
+</body>
+</html>
