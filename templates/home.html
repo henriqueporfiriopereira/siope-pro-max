@@ -1,80 +1,184 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>SIOPE PRO MAX</title>
+<meta charset="UTF-8">
+<title>SIOPE PRO MAX</title>
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+<!-- Chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    background: #f5f7fa;
+}
+
+.card {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.upload-box {
+    border: 2px dashed #0d6efd;
+    padding: 30px;
+    text-align: center;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.upload-box:hover {
+    background: #eef4ff;
+}
+
+.navbar {
+    background: #0d6efd;
+}
+
+.navbar-brand, .nav-link {
+    color: #fff !important;
+}
+
+</style>
 </head>
 
 <body>
 
-<h2>Dashboard</h2>
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid">
+    <span class="navbar-brand">SIOPE PRO MAX</span>
+    <div class="d-flex">
+      <span class="nav-link">👤 {{ current_user.username }}</span>
+      <a href="/logout" class="btn btn-light btn-sm ms-2">Sair</a>
+    </div>
+  </div>
+</nav>
 
-<p>Bem-vindo, {{ current_user.username }} |
-<a href="/logout">Sair</a></p>
+<div class="container mt-4">
 
-<hr>
+<!-- CARDS -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 text-center">
+            <h5>Total de Arquivos</h5>
+            <h2>{{ logs|length }}</h2>
+        </div>
+    </div>
 
-<!-- 🔥 UPLOAD (O QUE FALTAVA) -->
-<h3>Enviar Arquivos</h3>
+    <div class="col-md-4">
+        <div class="card p-3 text-center">
+            <h5>Total de Correções</h5>
+            <h2>{{ correcoes | sum }}</h2>
+        </div>
+    </div>
 
-<form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" multiple required>
-    <button type="submit">Processar</button>
-</form>
+    <div class="col-md-4">
+        <div class="card p-3 text-center">
+            <h5>Crescimento</h5>
+            <h2>{{ crescimento }}</h2>
+        </div>
+    </div>
+</div>
 
-<hr>
+<!-- UPLOAD -->
+<div class="card p-4 mb-4">
+    <h5>Enviar Arquivos</h5>
+
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label class="upload-box w-100">
+            <i class="bi bi-cloud-upload" style="font-size: 40px;"></i>
+            <p>Arraste ou clique para enviar arquivos</p>
+            <input type="file" name="file" multiple hidden required>
+        </label>
+
+        <button class="btn btn-primary mt-3">Processar</button>
+    </form>
+</div>
 
 <!-- FILTROS -->
-<form method="get">
-    <select name="municipio">
-        <option value="">Município</option>
-        {% for m in municipios %}
-            <option value="{{m}}">{{m}}</option>
-        {% endfor %}
-    </select>
+<div class="card p-3 mb-4">
+    <form method="get" class="row g-2">
 
-    <select name="mes">
-        <option value="">Mês</option>
-        {% for m in meses_lista %}
-            <option value="{{m}}">{{m}}</option>
-        {% endfor %}
-    </select>
+        <div class="col-md-4">
+            <select name="municipio" class="form-select">
+                <option value="">Município</option>
+                {% for m in municipios %}
+                    <option value="{{m}}">{{m}}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-    <button type="submit">Filtrar</button>
-</form>
+        <div class="col-md-4">
+            <select name="mes" class="form-select">
+                <option value="">Mês</option>
+                {% for m in meses_lista %}
+                    <option value="{{m}}">{{m}}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-<br>
+        <div class="col-md-4">
+            <button class="btn btn-success w-100">Filtrar</button>
+        </div>
 
-<a href="/exportar">Exportar Excel</a>
+    </form>
 
-<hr>
-
-<h3>Crescimento entre meses: {{ crescimento }}</h3>
-
-<!-- HISTÓRICO -->
-<h3>Histórico</h3>
-
-<ul>
-{% for l in logs %}
-    <li>{{ l.filename }} - {{ l.corrections }}</li>
-{% endfor %}
-</ul>
+    <a href="/exportar" class="btn btn-outline-primary mt-3">Exportar Excel</a>
+</div>
 
 <!-- GRÁFICO -->
-<canvas id="grafico"></canvas>
+<div class="card p-4 mb-4">
+    <h5>Correções por mês</h5>
+    <canvas id="grafico"></canvas>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- HISTÓRICO -->
+<div class="card p-4">
+    <h5>Histórico</h5>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Arquivo</th>
+                <th>Correções</th>
+                <th>Município</th>
+                <th>Mês</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in logs %}
+            <tr>
+                <td>{{ l.filename }}</td>
+                <td>{{ l.corrections }}</td>
+                <td>{{ l.municipio }}</td>
+                <td>{{ l.mes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</div>
 
 <script>
-const ctx = document.getElementById('grafico');
-
-new Chart(ctx, {
+new Chart(document.getElementById('grafico'), {
     type: 'bar',
     data: {
         labels: {{ meses | tojson }},
         datasets: [{
             label: 'Correções',
-            data: {{ valores | tojson }}
+            data: {{ valores | tojson }},
+            backgroundColor: '#0d6efd'
         }]
+    },
+    options: {
+        responsive: true
     }
 });
 </script>
