@@ -44,46 +44,63 @@ def register():
 @login_required
 def home():
     logs = FileLog.query.all()
-    return render_template("home.html", logs=logs)
+
+    total_arquivos = len(logs)
+    total_correcoes = sum(l.corrections for l in logs)
+
+    return render_template(
+        "home.html",
+        logs=logs,
+        total_arquivos=total_arquivos,
+        total_correcoes=total_correcoes
+    )
 
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload():
-    file = request.files["file"]
-    path = os.path.join(UPLOAD, file.filename)
-    file.save(path)
+    files = request.files.getlist("file")
 
-    df = pd.read_excel(path, header=None)
+    total_erros = 0
+    arquivos_processados = []
 
-    linhas = []
-    erros = 0
+    for file in files:
+        path = os.path.join(UPLOAD, file.filename)
+        file.save(path)
 
-    for _, row in df.iterrows():
-        if pd.isna(row[0]): continue
+        df = pd.read_excel(path, header=None)
+        linhas = []
+        erros = 0
 
-        partes = str(row[0]).split(';')
+        for _, row in df.iterrows():
+            if pd.isna(row[0]): continue
 
-        if len(partes) > 21:
-            try:
-                base = float(partes[17].replace('.', '').replace(',', '.'))
-                rem = float(partes[21].replace('.', '').replace(',', '.'))
+            partes = str(row[0]).split(';')
 
-                if base > rem:
-                    partes[17] = partes[21]
-                    erros += 1
-            except:
-                pass
+            if len(partes) > 21:
+                try:
+                    base = float(partes[17].replace('.', '').replace(',', '.'))
+                    rem = float(partes[21].replace('.', '').replace(',', '.'))
 
-        linhas.append(';'.join(partes))
+                    if base > rem:
+                        partes[17] = partes[21]
+                        erros += 1
+                except:
+                    pass
 
-    out = path.replace(".xlsx","_CORRIGIDO.xlsx")
-    pd.DataFrame(linhas).to_excel(out, index=False, header=False)
+            linhas.append(';'.join(partes))
 
-    log = FileLog(filename=file.filename, corrections=erros)
-    db.session.add(log)
+        out = path.replace(".xlsx","_CORRIGIDO.xlsx")
+        pd.DataFrame(linhas).to_excel(out, index=False, header=False)
+
+        log = FileLog(filename=file.filename, corrections=erros)
+        db.session.add(log)
+
+        total_erros += erros
+        arquivos_processados.append(out)
+
     db.session.commit()
 
-    return send_file(out, as_attachment=True)
+    return send_file(arquivos_processados[0], as_attachment=True)
 
 @app.route("/logout")
 def logout():
