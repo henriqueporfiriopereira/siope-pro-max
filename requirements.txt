@@ -5,3 +5,4 @@ werkzeug
 pandas
 openpyxl
 gunicorn
+reportlab

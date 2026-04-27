@@ -116,12 +116,34 @@ def upload():
 
     zip_buffer.seek(0)
 
+    pdf = gerar_pdf(len(files), total_erros)
+
     return send_file(
         zip_buffer,
         as_attachment=True,
         download_name="arquivos_corrigidos.zip",
         mimetype="application/zip"
     )
+from reportlab.pdfgen import canvas
+from datetime import datetime
+
+def gerar_pdf(total_arquivos, total_erros):
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer)
+
+    c.setFont("Helvetica", 14)
+    c.drawString(100, 800, "RELATÓRIO SIOPE PRO MAX")
+
+    c.setFont("Helvetica", 12)
+    c.drawString(100, 750, f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    c.drawString(100, 720, f"Arquivos processados: {total_arquivos}")
+    c.drawString(100, 690, f"Total de correções: {total_erros}")
+
+    c.save()
+    buffer.seek(0)
+
+    return buffer
+
 @app.route("/logout")
 def logout():
     logout_user()
