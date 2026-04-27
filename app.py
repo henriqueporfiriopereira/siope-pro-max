@@ -9,25 +9,24 @@ from io import BytesIO
 import re
 from datetime import datetime
 from collections import defaultdict
+import os
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "siope_enterprise"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///novo_db.sqlite3"
+
+# 🔐 SEGURANÇA (Render usa variável de ambiente)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "siope_enterprise")
+
+# 🔥 BANCO DEFINITIVO (IMPORTANTE)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db_final_v3.sqlite3"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 
+# 🔥 CRIA BANCO AUTOMÁTICO
 with app.app_context():
-    try:
-        db.session.execute("ALTER TABLE file_log ADD COLUMN municipio VARCHAR(100)")
-    except:
-        pass
+    db.create_all()
 
-    try:
-        db.session.execute("ALTER TABLE file_log ADD COLUMN mes VARCHAR(10)")
-    except:
-        pass
-
-    db.session.commit()
+# ================= LOGIN =================
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -37,12 +36,13 @@ login_manager.login_view = "/"
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# ================= LOGIN =================
+# ================= ROTAS =================
 
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         user = User.query.filter_by(username=request.form["user"]).first()
+
         if not user or not check_password_hash(user.password, request.form["pass"]):
             flash("Login inválido")
             return redirect("/")
@@ -52,17 +52,30 @@ def login():
 
     return render_template("login.html")
 
-@app.route("/register", methods=["GET","POST"])
+# ================= REGISTRO =================
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
+
+        # evita duplicado
+        if User.query.filter_by(username=request.form["user"]).first():
+            flash("Usuário já existe")
+            return redirect("/register")
+
         user = User(
             username=request.form["user"],
             password=generate_password_hash(request.form["pass"])
         )
+
         db.session.add(user)
         db.session.commit()
+
         return redirect("/")
+
     return render_template("register.html")
+
+# ================= LOGOUT =================
 
 @app.route("/logout")
 @login_required
@@ -70,7 +83,7 @@ def logout():
     logout_user()
     return redirect("/")
 
-# ================= EXTRAIR DADOS REAIS =================
+# ================= FUNÇÕES =================
 
 def detectar_municipio(nome):
     nome = nome.upper()
@@ -94,6 +107,7 @@ def extrair_mes(nome):
             ano = re.findall(r"\d{4}", nome)
             if ano:
                 return f"{meses[m]}/{ano[0]}"
+
     return "00/0000"
 
 # ================= DASHBOARD =================
@@ -118,17 +132,15 @@ def home():
     correcoes = [l.corrections for l in logs]
 
     # gráfico mensal
-    meses = defaultdict(int)
+    meses_dict = defaultdict(int)
     for l in logs:
-        meses[l.mes] += l.corrections
+        meses_dict[l.mes] += l.corrections
 
-    # comparação entre meses
     crescimento = 0
-    if len(meses) >= 2:
-        valores = list(meses.values())
+    if len(meses_dict) >= 2:
+        valores = list(meses_dict.values())
         crescimento = valores[-1] - valores[-2]
 
-    # selects
     municipios = [m[0] for m in db.session.query(FileLog.municipio).distinct()]
     meses_lista = [m[0] for m in db.session.query(FileLog.mes).distinct()]
 
@@ -136,8 +148,8 @@ def home():
         "home.html",
         nomes=nomes,
         correcoes=correcoes,
-        meses=list(meses.keys()),
-        valores=list(meses.values()),
+        meses=list(meses_dict.keys()),
+        valores=list(meses_dict.values()),
         logs=logs,
         municipios=municipios,
         meses_lista=meses_lista,
@@ -161,7 +173,8 @@ def upload():
             erros = 0
 
             for _, row in df.iterrows():
-                if pd.isna(row[0]): continue
+                if pd.isna(row[0]):
+                    continue
 
                 partes = str(row[0]).split(';')
 
@@ -182,10 +195,10 @@ def upload():
             pd.DataFrame(linhas).to_excel(excel_buffer, index=False, header=False)
             excel_buffer.seek(0)
 
-            nome_saida = file.filename.replace(".xlsx","_CORRIGIDO.xlsx")
+            nome_saida = file.filename.replace(".xlsx", "_CORRIGIDO.xlsx")
             zip_file.writestr(nome_saida, excel_buffer.read())
 
-            # 🔥 SALVANDO DADOS REAIS
+            # salvar no banco
             db.session.add(FileLog(
                 filename=file.filename,
                 corrections=erros,
@@ -198,7 +211,7 @@ def upload():
     zip_buffer.seek(0)
     return send_file(zip_buffer, as_attachment=True, download_name="resultado.zip")
 
-# ================= EXPORTAR FILTRADO =================
+# ================= EXPORTAR =================
 
 @app.route("/exportar")
 @login_required
@@ -217,6 +230,7 @@ def exportar():
     logs = query.all()
 
     buffer = BytesIO()
+
     df = pd.DataFrame([{
         "arquivo": l.filename,
         "correcoes": l.corrections,
@@ -232,6 +246,4 @@ def exportar():
 # ================= START =================
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run()
