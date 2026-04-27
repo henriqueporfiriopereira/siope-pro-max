@@ -1,5 +1,7 @@
-flask
-flask_sqlalchemy
-flask_login
+Flask
+Flask-Login
+Flask-SQLAlchemy
+pandas
+openpyxl
 gunicorn
 reportlab
