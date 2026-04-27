@@ -34,18 +34,31 @@ def login():
 @app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
-        org = Organization(name=request.form['org'])
-        db.session.add(org)
-        db.session.commit()
+        try:
+            org_name = request.form.get('org')
+            email = request.form.get('email')
+            password = request.form.get('password')
 
-        user = User(
-            email=request.form['email'],
-            password=generate_password_hash(request.form['password']),
-            org_id=org.id
-        )
-        db.session.add(user)
-        db.session.commit()
-        return redirect('/')
+            if not org_name or not email or not password:
+                return "Preencha todos os campos"
+
+            org = Organization(name=org_name)
+            db.session.add(org)
+            db.session.commit()
+
+            user = User(
+                email=email,
+                password=generate_password_hash(password),
+                org_id=org.id
+            )
+            db.session.add(user)
+            db.session.commit()
+
+            return redirect('/')
+
+        except Exception as e:
+            return f"Erro ao cadastrar: {str(e)}"
+
     return render_template('register.html')
 
 @app.route('/dashboard')
