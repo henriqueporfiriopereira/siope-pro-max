@@ -60,13 +60,12 @@ def home():
         total_correcoes=total_correcoes
     )
 
+from flask import redirect, url_for
+
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload():
     files = request.files.getlist("file")
-
-    total_erros = 0
-    arquivos_processados = []
 
     for file in files:
         path = os.path.join(UPLOAD, file.filename)
@@ -100,12 +99,10 @@ def upload():
         log = FileLog(filename=file.filename, corrections=erros)
         db.session.add(log)
 
-        total_erros += erros
-        arquivos_processados.append(out)
-
     db.session.commit()
 
-    return send_file(arquivos_processados[0], as_attachment=True)
+    # 🔥 VOLTA PRO DASHBOARD
+    return redirect(url_for("home"))
 
 @app.route("/logout")
 def logout():
