@@ -76,10 +76,8 @@ def upload():
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
 
         for file in files:
-            path = os.path.join(UPLOAD, file.filename)
-            file.save(path)
+            df = pd.read_excel(file, header=None)
 
-            df = pd.read_excel(path, header=None)
             linhas = []
             erros = 0
 
@@ -101,12 +99,15 @@ def upload():
 
                 linhas.append(';'.join(partes))
 
+            # 🔥 cria excel em memória
+            excel_buffer = BytesIO()
+            pd.DataFrame(linhas).to_excel(excel_buffer, index=False, header=False)
+            excel_buffer.seek(0)
+
             nome_saida = file.filename.replace(".xlsx", "_CORRIGIDO.xlsx")
 
-            output_path = os.path.join(UPLOAD, nome_saida)
-            pd.DataFrame(linhas).to_excel(output_path, index=False, header=False)
-
-            zip_file.write(output_path, nome_saida)
+            # 🔥 adiciona direto no ZIP (sem salvar no disco)
+            zip_file.writestr(nome_saida, excel_buffer.read())
 
             log = FileLog(filename=file.filename, corrections=erros)
             db.session.add(log)
@@ -121,7 +122,6 @@ def upload():
         download_name="arquivos_corrigidos.zip",
         mimetype="application/zip"
     )
-
 @app.route("/logout")
 def logout():
     logout_user()
