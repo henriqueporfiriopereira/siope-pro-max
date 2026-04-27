@@ -1,43 +1,65 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>SIOPE PRO MAX</title>
+<title>SIOPE Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { font-family: Arial; background:#f4f6f9;}
+.card { background:white; padding:20px; margin:10px; border-radius:8px;}
+.grid { display:grid; grid-template-columns:1fr 1fr;}
+</style>
 </head>
 
 <body>
 
-<div style="background:#003366;color:white;padding:10px;">
-Bem-vindo, {{current_user.username}}
-<a href="/logout" style="color:white;float:right;">Sair</a>
+<h2>Dashboard SIOPE</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>Correções por arquivo</h3>
+<canvas id="bar"></canvas>
 </div>
 
-<h3>Upload</h3>
+<div class="card">
+<h3>Correções por mês</h3>
+<canvas id="line"></canvas>
+</div>
 
+</div>
+
+<div class="card">
+<h3>Insights Inteligentes</h3>
+<ul>
+{% for i in insights %}
+<li>{{i}}</li>
+{% endfor %}
+</ul>
+</div>
+
+<div class="card">
+<h3>Upload</h3>
 <form action="/upload" method="post" enctype="multipart/form-data">
 <input type="file" name="file" multiple>
 <button>Processar</button>
 </form>
-
-<h3>Histórico</h3>
-<ul>
-{% for l in logs %}
-<li>{{l.filename}} - {{l.corrections}}</li>
-{% endfor %}
-</ul>
-
-<h3>Correções por mês</h3>
-<canvas id="grafico"></canvas>
+</div>
 
 <script>
-new Chart(document.getElementById('grafico'), {
+new Chart(document.getElementById('bar'), {
+    type: 'bar',
+    data: {
+        labels: {{ nomes|tojson }},
+        datasets: [{ data: {{ correcoes|tojson }} }]
+    }
+});
+
+new Chart(document.getElementById('line'), {
     type: 'line',
     data: {
         labels: {{ meses|tojson }},
-        datasets: [{
-            label: 'Correções',
-            data: {{ valores|tojson }}
-        }]
+        datasets: [{ data: {{ valores|tojson }} }]
     }
 });
 </script>
