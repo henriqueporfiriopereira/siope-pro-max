@@ -1,0 +1,15 @@
+<h2>SIOPE PRO MAX</h2>
+
+<form action="/upload" method="post" enctype="multipart/form-data">
+<input type="file" name="file">
+<button>Corrigir</button>
+</form>
+
+<h3>Histórico</h3>
+<ul>
+{% for l in logs %}
+<li>{{l.filename}} - {{l.corrections}} correções</li>
+{% endfor %}
+</ul>
+
+<a href="/logout">Sair</a>
