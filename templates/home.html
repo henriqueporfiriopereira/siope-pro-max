@@ -1,167 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>SIOPE Dashboard</title>
-
+<title>SIOPE PRO MAX</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body {
-    font-family: Arial;
-    background:#f4f6f9;
-    margin:0;
-}
-
-.header {
-    background:#003366;
-    color:white;
-    padding:15px;
-    font-size:18px;
-}
-
-.container {
-    padding:20px;
-}
-
-.cards {
-    display:flex;
-    gap:20px;
-    margin-bottom:20px;
-}
-
-.card {
-    flex:1;
-    background:white;
-    padding:20px;
-    border-radius:8px;
-    text-align:center;
-}
-
-.big {
-    font-size:28px;
-    font-weight:bold;
-}
-
-.grid {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:20px;
-}
-
-.box {
-    background:white;
-    padding:20px;
-    border-radius:8px;
-}
-
-ul {
-    padding-left:20px;
-}
-</style>
 </head>
 
 <body>
 
-<div class="header">
-Bem-vindo, {{current_user.username}}
-<a href="/logout" style="color:white;float:right;">Sair</a>
-</div>
+<h2>Dashboard</h2>
 
-<div class="container">
-
-<!-- 🔥 CARDS -->
-<div class="cards">
-<div class="card">
-<div>Total Arquivos</div>
-<div class="big">{{logs|length}}</div>
-</div>
-
-<div class="card">
-<div>Total Correções</div>
-<div class="big">{{correcoes|sum}}</div>
-</div>
-
-<div class="card">
-<div>Média</div>
-<div class="big">
-{{ (correcoes|sum / logs|length) if logs|length > 0 else 0 }}
-</div>
-</div>
-</div>
-
-<!-- 🔥 GRÁFICOS -->
-<div class="grid">
-
-<div class="box">
-<h3>Correções por Arquivo</h3>
-<canvas id="bar"></canvas>
-</div>
-
-<div class="box">
-<h3>Evolução por Mês</h3>
-<canvas id="line"></canvas>
-</div>
-
-</div>
-
-<!-- 🔥 INSIGHTS -->
-<div class="box" style="margin-top:20px;">
-<h3>Insights Inteligentes</h3>
-<ul>
-{% for i in insights %}
-<li>{{i}}</li>
+<form method="get">
+<select name="municipio">
+<option value="">Município</option>
+{% for m in municipios %}
+<option value="{{m}}">{{m}}</option>
 {% endfor %}
-</ul>
-</div>
+</select>
 
-<!-- 🔥 RANKING -->
-<div class="box" style="margin-top:20px;">
-<h3>Ranking de Erros</h3>
-<ul>
-{% for l in logs|sort(attribute='corrections', reverse=True) %}
-<li>{{l.filename}} - {{l.corrections}}</li>
+<select name="mes">
+<option value="">Mês</option>
+{% for m in meses_lista %}
+<option value="{{m}}">{{m}}</option>
 {% endfor %}
-</ul>
-</div>
+</select>
 
-<!-- 🔥 UPLOAD -->
-<div class="box" style="margin-top:20px;">
-<h3>Upload</h3>
-<form action="/upload" method="post" enctype="multipart/form-data">
-<input type="file" name="file" multiple>
-<button>Processar</button>
+<button>Filtrar</button>
 </form>
-</div>
 
-</div>
+<a href="/exportar?municipio={{request.args.get('municipio')}}&mes={{request.args.get('mes')}}">
+<button>Exportar Excel</button>
+</a>
+
+<h3>Crescimento entre meses: {{crescimento}}</h3>
+
+<canvas id="grafico"></canvas>
 
 <script>
-
-// GRÁFICO BARRA
-new Chart(document.getElementById('bar'), {
+new Chart(document.getElementById('grafico'), {
     type: 'bar',
     data: {
-        labels: {{ nomes|tojson }},
-        datasets: [{
-            label: 'Correções',
-            data: {{ correcoes|tojson }}
-        }]
-    }
-});
-
-// GRÁFICO LINHA
-new Chart(document.getElementById('line'), {
-    type: 'line',
-    data: {
         labels: {{ meses|tojson }},
-        datasets: [{
-            label: 'Correções',
-            data: {{ valores|tojson }},
-            fill: false
-        }]
+        datasets: [{ data: {{ valores|tojson }} }]
     }
 });
-
 </script>
 
 </body>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, send_file, url_for, flash
+from flask import Flask, render_template, request, redirect, send_file, flash
 from models import db, User, FileLog
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,11 +6,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 import zipfile
 from io import BytesIO
+import re
 from datetime import datetime
 from collections import defaultdict
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "super_secret"
+app.config["SECRET_KEY"] = "siope_enterprise"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
 
 db.init_app(app)
@@ -29,9 +30,8 @@ def load_user(user_id):
 def login():
     if request.method == "POST":
         user = User.query.filter_by(username=request.form["user"]).first()
-
         if not user or not check_password_hash(user.password, request.form["pass"]):
-            flash("Login inválido", "error")
+            flash("Login inválido")
             return redirect("/")
 
         login_user(user, remember=True)
@@ -57,42 +57,67 @@ def logout():
     logout_user()
     return redirect("/")
 
-# ================= IA SIMPLES =================
+# ================= EXTRAIR DADOS REAIS =================
 
-def gerar_insights(logs):
-    if not logs:
-        return ["Sem dados ainda"]
+def detectar_municipio(nome):
+    nome = nome.upper()
+    if "CANAPI" in nome:
+        return "CANAPI"
+    elif "OURO" in nome:
+        return "OURO_BRANCO"
+    return "OUTROS"
 
-    total = sum(l.corrections for l in logs)
-    maior = max(logs, key=lambda x: x.corrections)
-    menor = min(logs, key=lambda x: x.corrections)
+def extrair_mes(nome):
+    meses = {
+        "JANEIRO":"01", "FEVEREIRO":"02", "MARCO":"03", "ABRIL":"04",
+        "MAIO":"05", "JUNHO":"06", "JULHO":"07", "AGOSTO":"08",
+        "SETEMBRO":"09", "OUTUBRO":"10", "NOVEMBRO":"11", "DEZEMBRO":"12"
+    }
 
-    insights = []
-    insights.append(f"Arquivo com mais erros: {maior.filename}")
-    insights.append(f"Arquivo com menos erros: {menor.filename}")
-    insights.append(f"Média geral de erros: {round(total/len(logs),2)}")
+    nome = nome.upper()
 
-    if total > 100:
-        insights.append("Alto volume de inconsistências detectado")
-
-    return insights
+    for m in meses:
+        if m in nome:
+            ano = re.findall(r"\d{4}", nome)
+            if ano:
+                return f"{meses[m]}/{ano[0]}"
+    return "00/0000"
 
 # ================= DASHBOARD =================
 
 @app.route("/home")
 @login_required
 def home():
-    logs = FileLog.query.all()
+    municipio = request.args.get("municipio")
+    mes = request.args.get("mes")
+
+    query = FileLog.query
+
+    if municipio:
+        query = query.filter_by(municipio=municipio)
+
+    if mes:
+        query = query.filter_by(mes=mes)
+
+    logs = query.all()
 
     nomes = [l.filename for l in logs]
     correcoes = [l.corrections for l in logs]
 
+    # gráfico mensal
     meses = defaultdict(int)
     for l in logs:
-        mes = datetime.now().strftime("%m/%Y")
-        meses[mes] += l.corrections
+        meses[l.mes] += l.corrections
 
-    insights = gerar_insights(logs)
+    # comparação entre meses
+    crescimento = 0
+    if len(meses) >= 2:
+        valores = list(meses.values())
+        crescimento = valores[-1] - valores[-2]
+
+    # selects
+    municipios = [m[0] for m in db.session.query(FileLog.municipio).distinct()]
+    meses_lista = [m[0] for m in db.session.query(FileLog.mes).distinct()]
 
     return render_template(
         "home.html",
@@ -100,8 +125,10 @@ def home():
         correcoes=correcoes,
         meses=list(meses.keys()),
         valores=list(meses.values()),
-        insights=insights,
-        logs=logs
+        logs=logs,
+        municipios=municipios,
+        meses_lista=meses_lista,
+        crescimento=crescimento
     )
 
 # ================= PROCESSAMENTO =================
@@ -110,7 +137,6 @@ def home():
 @login_required
 def upload():
     files = request.files.getlist("file")
-
     zip_buffer = BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -146,13 +172,49 @@ def upload():
             nome_saida = file.filename.replace(".xlsx","_CORRIGIDO.xlsx")
             zip_file.writestr(nome_saida, excel_buffer.read())
 
-            db.session.add(FileLog(filename=file.filename, corrections=erros))
+            # 🔥 SALVANDO DADOS REAIS
+            db.session.add(FileLog(
+                filename=file.filename,
+                corrections=erros,
+                municipio=detectar_municipio(file.filename),
+                mes=extrair_mes(file.filename)
+            ))
 
     db.session.commit()
 
     zip_buffer.seek(0)
-
     return send_file(zip_buffer, as_attachment=True, download_name="resultado.zip")
+
+# ================= EXPORTAR FILTRADO =================
+
+@app.route("/exportar")
+@login_required
+def exportar():
+    municipio = request.args.get("municipio")
+    mes = request.args.get("mes")
+
+    query = FileLog.query
+
+    if municipio:
+        query = query.filter_by(municipio=municipio)
+
+    if mes:
+        query = query.filter_by(mes=mes)
+
+    logs = query.all()
+
+    buffer = BytesIO()
+    df = pd.DataFrame([{
+        "arquivo": l.filename,
+        "correcoes": l.corrections,
+        "municipio": l.municipio,
+        "mes": l.mes
+    } for l in logs])
+
+    df.to_excel(buffer, index=False)
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name="relatorio.xlsx")
 
 # ================= START =================
 
