@@ -1,103 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>SIOPE PRO MAX</title>
 
-<style>
-body {
-    font-family: Arial;
-    background: linear-gradient(135deg, #003366, #0055aa);
-    height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin:0;
-}
-
-.box {
-    background:white;
-    padding:30px;
-    border-radius:10px;
-    width:320px;
-    box-shadow:0 5px 20px rgba(0,0,0,0.3);
-}
-
-h2 {
-    text-align:center;
-    margin-bottom:20px;
-}
-
-input {
-    width:100%;
-    padding:10px;
-    margin-bottom:10px;
-    border:1px solid #ccc;
-    border-radius:5px;
-}
-
-button {
-    width:100%;
-    padding:10px;
-    background:#007bff;
-    color:white;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-button:hover {
-    background:#0056b3;
-}
-
-a {
-    display:block;
-    text-align:center;
-    margin-top:10px;
-    text-decoration:none;
-    color:#007bff;
-}
-
-.msg {
-    padding:10px;
-    margin-bottom:10px;
-    border-radius:5px;
-}
-
-.error { background:#ffcccc; }
-.success { background:#ccffcc; }
-</style>
-</head>
-
-<body>
-
-<div class="box">
-
-<h2>SIOPE PRO MAX</h2>
-
-<!-- mensagens -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="msg {{cat}}">{{msg}}</div>
-  {% endfor %}
-{% endwith %}
-
-<form method="post">
-
-<input name="user" placeholder="Usuário" required>
-
-<input name="pass" type="password" placeholder="Senha" required>
-
-<label>
-<input type="checkbox" name="lembrar"> Lembrar-me
-</label>
-
-<button type="submit">Entrar</button>
-
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+<h2>Login</h2>
+<form method="POST">
+<input name="email" placeholder="Email">
+<input name="password" placeholder="Senha">
+<button>Entrar</button>
 </form>
-
 <a href="/register">Criar conta</a>
-
 </div>
-
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,17 @@
+
+{% extends 'base.html' %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div id="dropzone">Arraste arquivos aqui</div>
+<button onclick="uploadFiles()">Processar</button>
+
+<canvas id="chart"></canvas>
+
+<ul>
+{% for f in files %}
+<li>{{f.filename}} - {{f.corrections}}</li>
+{% endfor %}
+</ul>
+
+{% endblock %}

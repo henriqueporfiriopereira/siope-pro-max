@@ -1,82 +1,109 @@
-from flask import Flask, render_template, request, send_file
-from models import db, FileLog
-import pandas as pd
-import zipfile
-import os
-import io
 
-import matplotlib
-matplotlib.use('Agg')
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, Organization, FileLog
+import random
+import io
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
-
+app.config['SECRET_KEY'] = 'empresa_secret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 
-# Criar banco automaticamente
-with app.app_context():
-    db.create_all()
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
 
-# ---------------- HOME ----------------
-@app.route("/")
-@app.route("/home")
-def home():
-    logs = FileLog.query.all()
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-    meses = [l.mes for l in logs]
-    valores = [l.corrections for l in logs]
+@app.route('/', methods=['GET','POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(email=request.form['email']).first()
+        if user and check_password_hash(user.password, request.form['password']):
+            login_user(user)
+            return redirect('/dashboard')
+    return render_template('login.html')
 
-    return render_template("home.html", logs=logs, meses=meses, valores=valores)
-
-# ---------------- UPLOAD ----------------
-@app.route("/upload", methods=["POST"])
-def upload():
-    files = request.files.getlist("files")
-
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-
-        for file in files:
-            df = pd.read_excel(file)
-
-            # exemplo de contagem
-            corrections = len(df)
-
-            nome = file.filename
-            municipio = nome.split(" ")[1] if len(nome.split(" ")) > 1 else "N/A"
-            mes = nome.split(" ")[-1].replace(".xlsx","")
-
-            # salvar no banco
-            log = FileLog(
-                filename=nome,
-                corrections=corrections,
-                municipio=municipio,
-                mes=mes
-            )
-            db.session.add(log)
-
-            # gerar arquivo corrigido (simples)
-            output = io.BytesIO()
-            df.to_excel(output, index=False)
-            output.seek(0)
-
-            zip_file.writestr(nome, output.read())
-
+@app.route('/register', methods=['GET','POST'])
+def register():
+    if request.method == 'POST':
+        org = Organization(name=request.form['org'])
+        db.session.add(org)
         db.session.commit()
 
-    zip_buffer.seek(0)
+        user = User(
+            email=request.form['email'],
+            password=generate_password_hash(request.form['password']),
+            org_id=org.id
+        )
+        db.session.add(user)
+        db.session.commit()
+        return redirect('/')
+    return render_template('register.html')
 
-    return send_file(
-        zip_buffer,
-        as_attachment=True,
-        download_name="resultado.zip",
-        mimetype="application/zip"
-    )
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    files = FileLog.query.filter_by(org_id=current_user.org_id).all()
+    return render_template('dashboard.html', files=files)
 
-# ---------------- RODAR ----------------
+@app.route('/upload', methods=['POST'])
+@login_required
+def upload():
+    files = request.files.getlist("files")
+    for f in files:
+        log = FileLog(
+            filename=f.filename,
+            org_id=current_user.org_id,
+            corrections=random.randint(50,300)
+        )
+        db.session.add(log)
+    db.session.commit()
+    return jsonify({"status":"ok"})
+
+@app.route('/api/chart')
+@login_required
+def chart():
+    data = FileLog.query.filter_by(org_id=current_user.org_id).all()
+    return jsonify({
+        "labels":[f.filename for f in data],
+        "values":[f.corrections for f in data]
+    })
+
+@app.route('/pdf')
+@login_required
+def pdf():
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer)
+
+    y = 800
+    p.drawString(50, y, "Relatório SIOPE")
+    y -= 30
+
+    files = FileLog.query.filter_by(org_id=current_user.org_id).all()
+
+    for f in files:
+        p.drawString(50, y, f"{f.filename} - {f.corrections}")
+        y -= 20
+
+    p.save()
+    buffer.seek(0)
+
+    return send_file(buffer, as_attachment=True, download_name="relatorio.pdf", mimetype='application/pdf')
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect('/')
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)

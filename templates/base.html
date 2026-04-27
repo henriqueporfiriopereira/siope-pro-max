@@ -1,0 +1,21 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>SIOPE EMPRESA</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="sidebar">
+<h2>SIOPE EMPRESA</h2>
+<a href="/dashboard">Dashboard</a>
+<a href="/pdf">Gerar PDF</a>
+<a href="/logout">Sair</a>
+</div>
+<div class="main">
+{% block content %}{% endblock %}
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
