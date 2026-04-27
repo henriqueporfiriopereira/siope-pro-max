@@ -7,26 +7,24 @@ import pandas as pd
 import zipfile
 from io import BytesIO
 import re
-from datetime import datetime
 from collections import defaultdict
 import os
 
+# PDF
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+import matplotlib.pyplot as plt
+
 app = Flask(__name__)
 
-# 🔐 SEGURANÇA (Render usa variável de ambiente)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "siope_enterprise")
-
-# 🔥 BANCO DEFINITIVO (IMPORTANTE)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db_final_v3.sqlite3"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 
-# 🔥 CRIA BANCO AUTOMÁTICO
 with app.app_context():
     db.create_all()
-
-# ================= LOGIN =================
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -36,7 +34,7 @@ login_manager.login_view = "/"
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# ================= ROTAS =================
+# ================= LOGIN =================
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -52,13 +50,9 @@ def login():
 
     return render_template("login.html")
 
-# ================= REGISTRO =================
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-
-        # evita duplicado
         if User.query.filter_by(username=request.form["user"]).first():
             flash("Usuário já existe")
             return redirect("/register")
@@ -74,8 +68,6 @@ def register():
         return redirect("/")
 
     return render_template("register.html")
-
-# ================= LOGOUT =================
 
 @app.route("/logout")
 @login_required
@@ -95,9 +87,9 @@ def detectar_municipio(nome):
 
 def extrair_mes(nome):
     meses = {
-        "JANEIRO":"01", "FEVEREIRO":"02", "MARCO":"03", "ABRIL":"04",
-        "MAIO":"05", "JUNHO":"06", "JULHO":"07", "AGOSTO":"08",
-        "SETEMBRO":"09", "OUTUBRO":"10", "NOVEMBRO":"11", "DEZEMBRO":"12"
+        "JANEIRO":"01","FEVEREIRO":"02","MARCO":"03","ABRIL":"04",
+        "MAIO":"05","JUNHO":"06","JULHO":"07","AGOSTO":"08",
+        "SETEMBRO":"09","OUTUBRO":"10","NOVEMBRO":"11","DEZEMBRO":"12"
     }
 
     nome = nome.upper()
@@ -115,23 +107,8 @@ def extrair_mes(nome):
 @app.route("/home")
 @login_required
 def home():
-    municipio = request.args.get("municipio")
-    mes = request.args.get("mes")
+    logs = FileLog.query.all()
 
-    query = FileLog.query
-
-    if municipio:
-        query = query.filter_by(municipio=municipio)
-
-    if mes:
-        query = query.filter_by(mes=mes)
-
-    logs = query.all()
-
-    nomes = [l.filename for l in logs]
-    correcoes = [l.corrections for l in logs]
-
-    # gráfico mensal
     meses_dict = defaultdict(int)
     for l in logs:
         meses_dict[l.mes] += l.corrections
@@ -146,17 +123,16 @@ def home():
 
     return render_template(
         "home.html",
-        nomes=nomes,
-        correcoes=correcoes,
+        logs=logs,
+        correcoes=[l.corrections for l in logs],
         meses=list(meses_dict.keys()),
         valores=list(meses_dict.values()),
-        logs=logs,
         municipios=municipios,
         meses_lista=meses_lista,
         crescimento=crescimento
     )
 
-# ================= PROCESSAMENTO =================
+# ================= UPLOAD =================
 
 @app.route("/upload", methods=["POST"])
 @login_required
@@ -165,8 +141,8 @@ def upload():
     zip_buffer = BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-
         for file in files:
+
             df = pd.read_excel(file, header=None)
 
             linhas = []
@@ -195,10 +171,9 @@ def upload():
             pd.DataFrame(linhas).to_excel(excel_buffer, index=False, header=False)
             excel_buffer.seek(0)
 
-            nome_saida = file.filename.replace(".xlsx", "_CORRIGIDO.xlsx")
+            nome_saida = file.filename.replace(".xlsx","_CORRIGIDO.xlsx")
             zip_file.writestr(nome_saida, excel_buffer.read())
 
-            # salvar no banco
             db.session.add(FileLog(
                 filename=file.filename,
                 corrections=erros,
@@ -211,37 +186,44 @@ def upload():
     zip_buffer.seek(0)
     return send_file(zip_buffer, as_attachment=True, download_name="resultado.zip")
 
-# ================= EXPORTAR =================
+# ================= PDF =================
 
-@app.route("/exportar")
+@app.route("/relatorio_pdf")
 @login_required
-def exportar():
-    municipio = request.args.get("municipio")
-    mes = request.args.get("mes")
+def relatorio_pdf():
 
-    query = FileLog.query
+    logs = FileLog.query.all()
 
-    if municipio:
-        query = query.filter_by(municipio=municipio)
+    meses = {}
+    for l in logs:
+        meses[l.mes] = meses.get(l.mes, 0) + l.corrections
 
-    if mes:
-        query = query.filter_by(mes=mes)
+    plt.figure()
+    plt.bar(meses.keys(), meses.values())
+    plt.title("Correções por mês")
 
-    logs = query.all()
+    img = "grafico.png"
+    plt.savefig(img)
+    plt.close()
 
-    buffer = BytesIO()
+    pdf = "relatorio.pdf"
 
-    df = pd.DataFrame([{
-        "arquivo": l.filename,
-        "correcoes": l.corrections,
-        "municipio": l.municipio,
-        "mes": l.mes
-    } for l in logs])
+    doc = SimpleDocTemplate(pdf)
+    styles = getSampleStyleSheet()
 
-    df.to_excel(buffer, index=False)
-    buffer.seek(0)
+    elements = []
+    elements.append(Paragraph("Relatório SIOPE PRO MAX", styles["Title"]))
+    elements.append(Spacer(1, 20))
 
-    return send_file(buffer, as_attachment=True, download_name="relatorio.xlsx")
+    for l in logs:
+        elements.append(Paragraph(f"{l.filename} - {l.corrections}", styles["Normal"]))
+
+    elements.append(Spacer(1, 20))
+    elements.append(Image(img, width=400, height=200))
+
+    doc.build(elements)
+
+    return send_file(pdf, as_attachment=True)
 
 # ================= START =================
 
