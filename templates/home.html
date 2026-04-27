@@ -3,54 +3,40 @@
 <head>
 <title>SIOPE PRO MAX</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body { font-family: Arial; background:#f4f6f9; margin:0;}
-.header { background:#003366; color:white; padding:15px;}
-.container { padding:20px;}
-.card { background:white; padding:20px; border-radius:8px; margin-bottom:20px;}
-</style>
 </head>
 
 <body>
 
-<div class="header">SIOPE PRO MAX</div>
+<div style="background:#003366;color:white;padding:10px;">
+Bem-vindo, {{current_user.username}}
+<a href="/logout" style="color:white;float:right;">Sair</a>
+</div>
 
-<div class="container">
-
-<div class="card">
 <h3>Upload</h3>
+
 <form action="/upload" method="post" enctype="multipart/form-data">
 <input type="file" name="file" multiple>
 <button>Processar</button>
 </form>
-</div>
 
-<div class="card">
 <h3>Histórico</h3>
 <ul>
 {% for l in logs %}
 <li>{{l.filename}} - {{l.corrections}}</li>
 {% endfor %}
 </ul>
-</div>
 
-<div class="card">
 <h3>Correções por mês</h3>
-<canvas id="graficoMes"></canvas>
-</div>
-
-</div>
+<canvas id="grafico"></canvas>
 
 <script>
-new Chart(document.getElementById('graficoMes'), {
+new Chart(document.getElementById('grafico'), {
     type: 'line',
     data: {
         labels: {{ meses|tojson }},
         datasets: [{
             label: 'Correções',
-            data: {{ valores|tojson }},
-            fill: false
+            data: {{ valores|tojson }}
         }]
     }
 });

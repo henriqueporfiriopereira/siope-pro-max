@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, redirect, send_file, url_for
+from flask import Flask, render_template, request, redirect, send_file, url_for, flash
 from models import db, User, FileLog
-from flask_login import LoginManager, login_user, login_required, logout_user
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import pandas as pd
@@ -12,13 +12,14 @@ from reportlab.pdfgen import canvas
 from collections import defaultdict
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "siope_secret"
+app.config["SECRET_KEY"] = "siope_super_seguro_123"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
 
 db.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = "/"
 
 UPLOAD = "uploads"
 os.makedirs(UPLOAD, exist_ok=True)
@@ -33,9 +34,21 @@ def load_user(user_id):
 def login():
     if request.method == "POST":
         user = User.query.filter_by(username=request.form["user"]).first()
-        if user and check_password_hash(user.password, request.form["pass"]):
-            login_user(user)
-            return redirect("/home")
+
+        if not user:
+            flash("Usuário não encontrado", "error")
+            return redirect("/")
+
+        if not check_password_hash(user.password, request.form["pass"]):
+            flash("Senha incorreta", "error")
+            return redirect("/")
+
+        lembrar = True if request.form.get("lembrar") else False
+
+        login_user(user, remember=lembrar)
+        flash("Login realizado com sucesso", "success")
+        return redirect("/home")
+
     return render_template("login.html")
 
 @app.route("/register", methods=["GET","POST"])
@@ -45,12 +58,15 @@ def register():
         user = User(username=request.form["user"], password=senha)
         db.session.add(user)
         db.session.commit()
+        flash("Usuário criado com sucesso", "success")
         return redirect("/")
     return render_template("register.html")
 
 @app.route("/logout")
+@login_required
 def logout():
     logout_user()
+    flash("Você saiu do sistema", "info")
     return redirect("/")
 
 # ================= FUNÇÕES =================

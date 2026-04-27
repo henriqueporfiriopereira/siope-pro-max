@@ -1,7 +1,41 @@
-<form method="post">
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+<style>
+body { font-family: Arial; background:#003366; display:flex; justify-content:center; align-items:center; height:100vh;}
+.box { background:white; padding:30px; border-radius:10px;}
+input { display:block; margin:10px 0; padding:10px; width:200px;}
+button { padding:10px; background:#007bff; color:white; border:none;}
+.msg { padding:10px; margin-bottom:10px;}
+.error { background:#ffcccc; }
+.success { background:#ccffcc; }
+</style>
+</head>
+<body>
+
+<div class="box">
+
 <h2>Login</h2>
-<input name="user"><br>
-<input name="pass" type="password"><br>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+<div class="msg {{cat}}">{{msg}}</div>
+{% endfor %}
+{% endwith %}
+
+<form method="post">
+<input name="user" placeholder="Usuário">
+<input name="pass" type="password" placeholder="Senha">
+
+<label><input type="checkbox" name="lembrar"> Lembrar</label>
+
 <button>Entrar</button>
-<a href="/register">Cadastrar</a>
 </form>
+
+<a href="/register">Cadastrar</a>
+
+</div>
+
+</body>
+</html>
