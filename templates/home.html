@@ -2,34 +2,110 @@
 <html>
 <head>
 <title>SIOPE Dashboard</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: Arial; background:#f4f6f9;}
-.card { background:white; padding:20px; margin:10px; border-radius:8px;}
-.grid { display:grid; grid-template-columns:1fr 1fr;}
+body {
+    font-family: Arial;
+    background:#f4f6f9;
+    margin:0;
+}
+
+.header {
+    background:#003366;
+    color:white;
+    padding:15px;
+    font-size:18px;
+}
+
+.container {
+    padding:20px;
+}
+
+.cards {
+    display:flex;
+    gap:20px;
+    margin-bottom:20px;
+}
+
+.card {
+    flex:1;
+    background:white;
+    padding:20px;
+    border-radius:8px;
+    text-align:center;
+}
+
+.big {
+    font-size:28px;
+    font-weight:bold;
+}
+
+.grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+}
+
+.box {
+    background:white;
+    padding:20px;
+    border-radius:8px;
+}
+
+ul {
+    padding-left:20px;
+}
 </style>
 </head>
 
 <body>
 
-<h2>Dashboard SIOPE</h2>
+<div class="header">
+Bem-vindo, {{current_user.username}}
+<a href="/logout" style="color:white;float:right;">Sair</a>
+</div>
 
-<div class="grid">
+<div class="container">
 
+<!-- 🔥 CARDS -->
+<div class="cards">
 <div class="card">
-<h3>Correções por arquivo</h3>
-<canvas id="bar"></canvas>
+<div>Total Arquivos</div>
+<div class="big">{{logs|length}}</div>
 </div>
 
 <div class="card">
-<h3>Correções por mês</h3>
+<div>Total Correções</div>
+<div class="big">{{correcoes|sum}}</div>
+</div>
+
+<div class="card">
+<div>Média</div>
+<div class="big">
+{{ (correcoes|sum / logs|length) if logs|length > 0 else 0 }}
+</div>
+</div>
+</div>
+
+<!-- 🔥 GRÁFICOS -->
+<div class="grid">
+
+<div class="box">
+<h3>Correções por Arquivo</h3>
+<canvas id="bar"></canvas>
+</div>
+
+<div class="box">
+<h3>Evolução por Mês</h3>
 <canvas id="line"></canvas>
 </div>
 
 </div>
 
-<div class="card">
+<!-- 🔥 INSIGHTS -->
+<div class="box" style="margin-top:20px;">
 <h3>Insights Inteligentes</h3>
 <ul>
 {% for i in insights %}
@@ -38,7 +114,18 @@ body { font-family: Arial; background:#f4f6f9;}
 </ul>
 </div>
 
-<div class="card">
+<!-- 🔥 RANKING -->
+<div class="box" style="margin-top:20px;">
+<h3>Ranking de Erros</h3>
+<ul>
+{% for l in logs|sort(attribute='corrections', reverse=True) %}
+<li>{{l.filename}} - {{l.corrections}}</li>
+{% endfor %}
+</ul>
+</div>
+
+<!-- 🔥 UPLOAD -->
+<div class="box" style="margin-top:20px;">
 <h3>Upload</h3>
 <form action="/upload" method="post" enctype="multipart/form-data">
 <input type="file" name="file" multiple>
@@ -46,22 +133,35 @@ body { font-family: Arial; background:#f4f6f9;}
 </form>
 </div>
 
+</div>
+
 <script>
+
+// GRÁFICO BARRA
 new Chart(document.getElementById('bar'), {
     type: 'bar',
     data: {
         labels: {{ nomes|tojson }},
-        datasets: [{ data: {{ correcoes|tojson }} }]
+        datasets: [{
+            label: 'Correções',
+            data: {{ correcoes|tojson }}
+        }]
     }
 });
 
+// GRÁFICO LINHA
 new Chart(document.getElementById('line'), {
     type: 'line',
     data: {
         labels: {{ meses|tojson }},
-        datasets: [{ data: {{ valores|tojson }} }]
+        datasets: [{
+            label: 'Correções',
+            data: {{ valores|tojson }},
+            fill: false
+        }]
     }
 });
+
 </script>
 
 </body>
